@@ -8,7 +8,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
-
+// hola
 @Entity
 @Table(
         name = "users",
