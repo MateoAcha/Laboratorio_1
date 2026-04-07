@@ -29,7 +29,13 @@ public class UserController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public User createUser(@RequestBody User user) {
-        if (repository.existsById(user.getUserId())) {
+        user.setUsername(requireText("username", user.getUsername()));
+        user.setEmail(requireText("email", user.getEmail()));
+        user.setPassword(requireText("password", user.getPassword()));
+
+        if (user.getUserId() == null) {
+            user.setUserId(nextUserId());
+        } else if (repository.existsById(user.getUserId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "userId already exists");
         }
 
@@ -49,6 +55,21 @@ public class UserController {
                     "User data conflicts with existing record",
                     ex);
         }
+    }
+
+    @PostMapping("/login")
+    public User login(@RequestBody LoginRequest request) {
+        String username = requireText("username", request.getUsername());
+        String password = requireText("password", request.getPassword());
+
+        User user = repository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
+
+        if (!password.equals(user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+        }
+
+        return user;
     }
 
     @GetMapping("/{id}")
@@ -120,6 +141,12 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
         repository.deleteById(id);
+    }
+
+    private Integer nextUserId() {
+        return repository.findTopByOrderByUserIdDesc()
+                .map(user -> user.getUserId() + 1)
+                .orElse(1);
     }
 
     private String requireText(String field, Object value) {
