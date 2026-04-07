@@ -1,0 +1,4 @@
+user_api/UserApiApplication.class
+user_api/UserController.class
+user_api/User.class
+user_api/UserRepository.class
