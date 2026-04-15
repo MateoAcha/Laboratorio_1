@@ -5,6 +5,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,9 +22,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserController {
 
     private final UserRepository repository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserController(UserRepository repository) {
+    public UserController(
+            UserRepository repository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @PostMapping
@@ -31,7 +39,7 @@ public class UserController {
     public User createUser(@RequestBody User user) {
         user.setUsername(requireText("username", user.getUsername()));
         user.setEmail(requireText("email", user.getEmail()));
-        user.setPassword(requireText("password", user.getPassword()));
+        user.setPassword(passwordEncoder.encode(requireText("password", user.getPassword())));
 
         if (user.getUserId() == null) {
             user.setUserId(nextUserId());
@@ -58,18 +66,19 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public User login(@RequestBody LoginRequest request) {
+    public LoginResponse login(@RequestBody LoginRequest request) {
         String username = requireText("username", request.getUsername());
         String password = requireText("password", request.getPassword());
 
         User user = repository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
 
-        if (!password.equals(user.getPassword())) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         }
 
-        return user;
+        String token = jwtService.generateToken(user);
+        return new LoginResponse(token, user.getUserId(), user.getUsername());
     }
 
     @GetMapping("/{id}")
