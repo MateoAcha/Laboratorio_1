@@ -5,6 +5,8 @@ import java.time.format.DateTimeParseException;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,14 +24,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserController {
 
     private final UserRepository repository;
+    private final PlayerStatsRepository playerStatsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public UserController(
             UserRepository repository,
+            PlayerStatsRepository playerStatsRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService) {
         this.repository = repository;
+        this.playerStatsRepository = playerStatsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -85,6 +90,45 @@ public class UserController {
     public User getUserById(@PathVariable Integer id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    @GetMapping("/{id}/stats")
+    public PlayerStats getPlayerStats(@PathVariable Integer id) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        ensureSameAuthenticatedUser(user);
+        return findOrCreateStats(user);
+    }
+
+    @PostMapping("/{id}/stats/session")
+    public PlayerStats addSessionStats(
+            @PathVariable Integer id,
+            @RequestBody PlayerStatsSessionUpdateRequest update) {
+
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        ensureSameAuthenticatedUser(user);
+
+        PlayerStats stats = findOrCreateStats(user);
+
+        stats.setMatchesPlayed(stats.getMatchesPlayed() + requireNonNegative("matchesPlayed", update.getMatchesPlayed()));
+        stats.setMeleeEnemiesKilled(stats.getMeleeEnemiesKilled() + requireNonNegative("meleeEnemiesKilled", update.getMeleeEnemiesKilled()));
+        stats.setRangedEnemiesKilled(stats.getRangedEnemiesKilled() + requireNonNegative("rangedEnemiesKilled", update.getRangedEnemiesKilled()));
+        stats.setDeaths(stats.getDeaths() + requireNonNegative("deaths", update.getDeaths()));
+        stats.setGamesWon(stats.getGamesWon() + requireNonNegative("gamesWon", update.getGamesWon()));
+        stats.setCoins(stats.getCoins() + requireNonNegative("coins", update.getCoins()));
+
+        int incomingHighScore = requireNonNegative("highScore", update.getHighScore());
+        if (incomingHighScore > stats.getHighScore()) {
+            stats.setHighScore(incomingHighScore);
+        }
+
+        long incomingTime = requireNonNegativeLong("timePlayedSeconds", update.getTimePlayedSeconds());
+        stats.setTimePlayedSeconds(stats.getTimePlayedSeconds() + incomingTime);
+
+        return playerStatsRepository.save(stats);
     }
 
     @PatchMapping("/{id}")
@@ -152,6 +196,26 @@ public class UserController {
         repository.deleteById(id);
     }
 
+    private PlayerStats findOrCreateStats(User user) {
+        return playerStatsRepository.findById(user.getUserId())
+                .orElseGet(() -> {
+                    PlayerStats stats = new PlayerStats();
+                    stats.setUser(user);
+                    return playerStatsRepository.save(stats);
+                });
+    }
+
+    private void ensureSameAuthenticatedUser(User user) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        if (!auth.getName().equals(user.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own stats");
+        }
+    }
+
     private Integer nextUserId() {
         return repository.findTopByOrderByUserIdDesc()
                 .map(user -> user.getUserId() + 1)
@@ -163,6 +227,22 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be a non-empty string");
         }
         return text.trim();
+    }
+
+    private int requireNonNegative(String field, Integer value) {
+        int safeValue = value == null ? 0 : value;
+        if (safeValue < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be >= 0");
+        }
+        return safeValue;
+    }
+
+    private long requireNonNegativeLong(String field, Long value) {
+        long safeValue = value == null ? 0L : value;
+        if (safeValue < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be >= 0");
+        }
+        return safeValue;
     }
 
     private boolean requireBoolean(String field, Object value) {
@@ -183,6 +263,81 @@ public class UserController {
             return LocalDateTime.parse(text);
         } catch (DateTimeParseException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be ISO datetime text", ex);
+        }
+    }
+
+    public static class PlayerStatsSessionUpdateRequest {
+        private Integer matchesPlayed;
+        private Integer meleeEnemiesKilled;
+        private Integer rangedEnemiesKilled;
+        private Integer deaths;
+        private Integer gamesWon;
+        private Integer highScore;
+        private Long timePlayedSeconds;
+        private Integer coins;
+
+        public Integer getMatchesPlayed() {
+            return matchesPlayed;
+        }
+
+        public void setMatchesPlayed(Integer matchesPlayed) {
+            this.matchesPlayed = matchesPlayed;
+        }
+
+        public Integer getMeleeEnemiesKilled() {
+            return meleeEnemiesKilled;
+        }
+
+        public void setMeleeEnemiesKilled(Integer meleeEnemiesKilled) {
+            this.meleeEnemiesKilled = meleeEnemiesKilled;
+        }
+
+        public Integer getRangedEnemiesKilled() {
+            return rangedEnemiesKilled;
+        }
+
+        public void setRangedEnemiesKilled(Integer rangedEnemiesKilled) {
+            this.rangedEnemiesKilled = rangedEnemiesKilled;
+        }
+
+        public Integer getDeaths() {
+            return deaths;
+        }
+
+        public void setDeaths(Integer deaths) {
+            this.deaths = deaths;
+        }
+
+        public Integer getGamesWon() {
+            return gamesWon;
+        }
+
+        public void setGamesWon(Integer gamesWon) {
+            this.gamesWon = gamesWon;
+        }
+
+        public Integer getHighScore() {
+            return highScore;
+        }
+
+        public void setHighScore(Integer highScore) {
+            this.highScore = highScore;
+        }
+
+        public Long getTimePlayedSeconds() {
+            return timePlayedSeconds;
+        }
+
+        public void setTimePlayedSeconds(Long timePlayedSeconds) {
+            this.timePlayedSeconds = timePlayedSeconds;
+        }
+
+        public Integer getCoins() {
+            return coins;
+        }
+
+        public void setCoins(Integer coins) {
+            this.coins = coins;
         }
     }
 }
