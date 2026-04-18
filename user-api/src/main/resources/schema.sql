@@ -1,13 +1,16 @@
 CREATE TABLE IF NOT EXISTS users (
     user_id INT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
     is_premium BOOLEAN NOT NULL DEFAULT FALSE,
     premium_since TIMESTAMP NULL,
     premium_until TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     password VARCHAR(255) NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_users_username ON users (username);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_users_email ON users (email);
 
 CREATE TABLE IF NOT EXISTS item (
     item_id INT PRIMARY KEY,
@@ -63,9 +66,10 @@ CREATE TABLE IF NOT EXISTS user_skin (
     user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     skin_id INT NOT NULL REFERENCES skin(skin_id) ON DELETE CASCADE,
     unlocked_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    unlock_source VARCHAR(255) NULL,
-    UNIQUE (user_id, skin_id)
+    unlock_source VARCHAR(255) NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_skin_user_skin ON user_skin (user_id, skin_id);
 
 CREATE TABLE IF NOT EXISTS item_skin (
     item_id INT NOT NULL REFERENCES item(item_id) ON DELETE CASCADE,
@@ -80,44 +84,15 @@ CREATE TABLE IF NOT EXISTS user_inventory (
     user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     item_id INT NOT NULL REFERENCES item(item_id) ON DELETE CASCADE,
     quantity INT NOT NULL CHECK (quantity >= 0),
-    acquired_at TIMESTAMP NULL,
-    UNIQUE (user_id, item_id)
+    acquired_at TIMESTAMP NULL
 );
 
-INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
-    (1001, 'Starter Spear', 'Weapon', 'Common', 'A reliable spear with reach that better matches the player attack style.'),
-    (1002, 'Training Vest', 'Armor', 'Common', 'Basic armor with enough padding for early matches.'),
-    (1003, 'Health Potion', 'Consumable', 'Uncommon', 'Restores vitality during long sessions.'),
-    (1004, 'Gold Coins', 'Currency', 'Common', 'Standard soft currency used in the shop.'),
-    (1005, 'Iron Ore', 'Material', 'Common', 'A crafting material used for simple upgrades.')
-ON CONFLICT (item_id) DO NOTHING;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_inventory_user_item ON user_inventory (user_id, item_id);
 
-INSERT INTO weapon (item_id, damage, accuracy, range, fire_rate, ammo_type) VALUES
-    (1001, 12, 0.92, 1.8, NULL, NULL)
-ON CONFLICT (item_id) DO NOTHING;
-
-INSERT INTO armor (item_id, defense, durability, weight) VALUES
-    (1002, 8, 45, 3.5)
-ON CONFLICT (item_id) DO NOTHING;
-
-INSERT INTO consumable (item_id, effect_description, duration_seconds, cooldown_seconds) VALUES
-    (1003, 'Restores 35 HP instantly.', NULL, 12)
-ON CONFLICT (item_id) DO NOTHING;
-
-INSERT INTO currency (item_id, currency_code, is_tradeable) VALUES
-    (1004, 'GOLD', TRUE)
-ON CONFLICT (item_id) DO NOTHING;
-
-INSERT INTO material (item_id, material_grade) VALUES
-    (1005, 'Refined')
-ON CONFLICT (item_id) DO NOTHING;
-
-INSERT INTO skin (skin_id, skin_name, rarity, created_at) VALUES
-    (2001, 'Crimson Edge', 'Rare', NOW()),
-    (2002, 'Field Green', 'Common', NOW())
-ON CONFLICT (skin_id) DO NOTHING;
-
-INSERT INTO item_skin (item_id, skin_id) VALUES
-    (1001, 2001),
-    (1002, 2002)
-ON CONFLICT (item_id, skin_id) DO NOTHING;
+CREATE TABLE IF NOT EXISTS shop_item (
+    shop_item_id INT PRIMARY KEY,
+    item_id INT NOT NULL REFERENCES item(item_id) ON DELETE CASCADE,
+    gold_price INT NOT NULL CHECK (gold_price >= 0),
+    purchase_quantity INT NOT NULL DEFAULT 1 CHECK (purchase_quantity > 0),
+    is_available BOOLEAN NOT NULL DEFAULT TRUE
+);

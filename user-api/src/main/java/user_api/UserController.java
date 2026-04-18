@@ -3,6 +3,7 @@ package user_api;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -27,16 +28,19 @@ public class UserController {
     private final PlayerStatsRepository playerStatsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final InventoryService inventoryService;
 
     public UserController(
             UserRepository repository,
             PlayerStatsRepository playerStatsRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            InventoryService inventoryService) {
         this.repository = repository;
         this.playerStatsRepository = playerStatsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.inventoryService = inventoryService;
     }
 
     @PostMapping
@@ -61,7 +65,9 @@ public class UserController {
         }
 
         try {
-            return repository.save(user);
+            User savedUser = repository.save(user);
+            inventoryService.ensureStarterInventory(savedUser.getUserId());
+            return withSessionToken(savedUser);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -131,6 +137,15 @@ public class UserController {
         return playerStatsRepository.save(stats);
     }
 
+    @GetMapping("/{id}/inventory")
+    public UserInventoryResponse getInventory(@PathVariable Integer id) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+
+        return inventoryService.getInventory(id);
+    }
+
     @PatchMapping("/{id}")
     public User patchUser(@PathVariable Integer id, @RequestBody Map<String, Object> updates) {
         User user = repository.findById(id)
@@ -187,6 +202,15 @@ public class UserController {
         }
     }
 
+    @PostMapping("/{id}/inventory/add-coins")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addCoins(@PathVariable Integer id, @RequestBody AddCoinsRequest request) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        inventoryService.addCoins(id, Math.max(0, request.quantity));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Integer id) {
@@ -214,6 +238,12 @@ public class UserController {
         if (!auth.getName().equals(user.getUsername())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own stats");
         }
+    }
+
+    private User withSessionToken(User user) {
+        user.setAccessToken("dev-token-" + user.getUserId() + "-" + UUID.randomUUID());
+        user.setTokenType("Bearer");
+        return user;
     }
 
     private Integer nextUserId() {
@@ -339,5 +369,9 @@ public class UserController {
         public void setCoins(Integer coins) {
             this.coins = coins;
         }
+    }
+
+    static class AddCoinsRequest {
+        public int quantity;
     }
 }
