@@ -56,6 +56,30 @@ INSERT INTO shop_item (shop_item_id, item_id, gold_price, purchase_quantity, is_
     (5, 1010,  50, 3, TRUE)
 ON CONFLICT (shop_item_id) DO NOTHING;
 
+INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
+    (1011, 'Long Spear',        'Weapon',     'Common',   'A spear with extended reach, trading striking power for range.'),
+    (1012, 'Reinforced Armor',  'Armor',      'Uncommon', 'Heavy plating that significantly reduces incoming damage.'),
+    (1013, 'Swift Elixir',      'Consumable', 'Uncommon', 'A potion that grants a burst of speed for 3 seconds when used.')
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO weapon (item_id, damage, accuracy, range, fire_rate, ammo_type) VALUES
+    (1011, 6, 0.80, 3.5, NULL, NULL)
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO armor (item_id, defense, durability, weight) VALUES
+    (1012, 18, 75, 4.0)
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO consumable (item_id, effect_description, duration_seconds, cooldown_seconds) VALUES
+    (1013, 'Speed Boost', 3, 15)
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO shop_item (shop_item_id, item_id, gold_price, purchase_quantity, is_available) VALUES
+    (6, 1011, 100, 1, TRUE),
+    (7, 1012, 180, 1, TRUE),
+    (8, 1013,  75, 3, TRUE)
+ON CONFLICT (shop_item_id) DO NOTHING;
+
 INSERT INTO skin (skin_id, skin_name, rarity, created_at) VALUES
     (2001, 'Crimson Edge', 'Rare', NOW()),
     (2002, 'Field Green', 'Common', NOW())

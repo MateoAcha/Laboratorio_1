@@ -228,4 +228,5 @@ public class InventoryService {
         boolean value = rs.getBoolean(column);
         return rs.wasNull() ? null : value;
     }
+
 }
