@@ -81,6 +81,7 @@ INSERT INTO shop_item (shop_item_id, item_id, gold_price, purchase_quantity, is_
 ON CONFLICT (shop_item_id) DO NOTHING;
 
 INSERT INTO skin (skin_id, skin_name, rarity, created_at) VALUES
+    (2000, 'Default Blue', 'Common', NOW()),
     (2001, 'Crimson Edge', 'Rare', NOW()),
     (2002, 'Field Green', 'Common', NOW())
 ON CONFLICT (skin_id) DO NOTHING;
@@ -89,3 +90,13 @@ INSERT INTO item_skin (item_id, skin_id) VALUES
     (1001, 2001),
     (1002, 2002)
 ON CONFLICT (item_id, skin_id) DO NOTHING;
+
+INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
+    (1016, 'Crimson Edge Skin', 'Skin', 'Rare',   'A battle-worn crimson skin that marks a fearless warrior.'),
+    (1017, 'Field Green Skin',  'Skin', 'Common', 'A muted field-operative look for blending into the fray.')
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO shop_item (shop_item_id, item_id, gold_price, purchase_quantity, is_available, skin_id) VALUES
+    (9,  1016, 300, 1, TRUE, 2001),
+    (10, 1017, 100, 1, TRUE, 2002)
+ON CONFLICT (shop_item_id) DO NOTHING;

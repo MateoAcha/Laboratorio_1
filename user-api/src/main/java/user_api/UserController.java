@@ -29,18 +29,21 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final InventoryService inventoryService;
+    private final SkinService skinService;
 
     public UserController(
             UserRepository repository,
             PlayerStatsRepository playerStatsRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            InventoryService inventoryService) {
+            InventoryService inventoryService,
+            SkinService skinService) {
         this.repository = repository;
         this.playerStatsRepository = playerStatsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.inventoryService = inventoryService;
+        this.skinService = skinService;
     }
 
     @PostMapping
@@ -67,6 +70,7 @@ public class UserController {
         try {
             User savedUser = repository.save(user);
             inventoryService.ensureStarterInventory(savedUser.getUserId());
+            skinService.ensureStarterSkins(savedUser.getUserId());
             return withSessionToken(savedUser);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
@@ -135,6 +139,23 @@ public class UserController {
         stats.setTimePlayedSeconds(stats.getTimePlayedSeconds() + incomingTime);
 
         return playerStatsRepository.save(stats);
+    }
+
+    @GetMapping("/{id}/skins")
+    public UserSkinsResponse getUserSkins(@PathVariable Integer id) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        return skinService.getUserSkins(id);
+    }
+
+    @PostMapping("/{id}/skins/{skinId}/equip")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void equipSkin(@PathVariable Integer id, @PathVariable Integer skinId) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        skinService.equipSkin(id, skinId);
     }
 
     @GetMapping("/{id}/inventory")

@@ -13,9 +13,11 @@ public class ShopService {
     private static final int GOLD_ITEM_ID = 1004;
 
     private final JdbcTemplate jdbcTemplate;
+    private final SkinService skinService;
 
-    public ShopService(JdbcTemplate jdbcTemplate) {
+    public ShopService(JdbcTemplate jdbcTemplate, SkinService skinService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.skinService = skinService;
     }
 
     public ShopCatalogResponse getCatalog() {
@@ -25,6 +27,7 @@ public class ShopService {
                     s.shop_item_id,
                     s.gold_price,
                     s.purchase_quantity,
+                    s.skin_id,
                     i.item_id,
                     i.item_name,
                     i.item_type,
@@ -46,6 +49,8 @@ public class ShopService {
                     item.setShopItemId(rs.getInt("shop_item_id"));
                     item.setGoldPrice(rs.getInt("gold_price"));
                     item.setPurchaseQuantity(rs.getInt("purchase_quantity"));
+                    int skinIdRaw = rs.getInt("skin_id");
+                    item.setSkinId(rs.wasNull() ? null : skinIdRaw);
                     item.setItemId(rs.getInt("item_id"));
                     item.setItemName(rs.getString("item_name"));
                     item.setItemType(rs.getString("item_type"));
@@ -64,8 +69,12 @@ public class ShopService {
     public void purchaseItem(Integer userId, int shopItemId) {
         // Resolve shop item
         List<ShopItemRow> rows = jdbcTemplate.query(
-                "SELECT item_id, gold_price, purchase_quantity FROM shop_item WHERE shop_item_id = ? AND is_available = TRUE",
-                (rs, n) -> new ShopItemRow(rs.getInt("item_id"), rs.getInt("gold_price"), rs.getInt("purchase_quantity")),
+                "SELECT item_id, gold_price, purchase_quantity, skin_id FROM shop_item WHERE shop_item_id = ? AND is_available = TRUE",
+                (rs, n) -> {
+                    int skinIdRaw = rs.getInt("skin_id");
+                    Integer skinId = rs.wasNull() ? null : skinIdRaw;
+                    return new ShopItemRow(rs.getInt("item_id"), rs.getInt("gold_price"), rs.getInt("purchase_quantity"), skinId);
+                },
                 shopItemId);
 
         if (rows.isEmpty()) {
@@ -90,15 +99,19 @@ public class ShopService {
             throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Not enough gold coins");
         }
 
-        // Add purchased item to inventory (or increase quantity)
-        jdbcTemplate.update(
-                """
-                INSERT INTO user_inventory (user_inventory_id, user_id, item_id, quantity, acquired_at)
-                VALUES (nextval('user_inventory_seq'), ?, ?, ?, NOW())
-                ON CONFLICT (user_id, item_id)
-                DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
-                """,
-                userId, shop.itemId, shop.purchaseQuantity);
+        // Skin items unlock a skin entry; everything else goes into inventory
+        if (shop.skinId != null) {
+            skinService.unlockSkin(userId, shop.skinId);
+        } else {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO user_inventory (user_inventory_id, user_id, item_id, quantity, acquired_at)
+                    VALUES (nextval('user_inventory_seq'), ?, ?, ?, NOW())
+                    ON CONFLICT (user_id, item_id)
+                    DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+                    """,
+                    userId, shop.itemId, shop.purchaseQuantity);
+        }
     }
 
     private String buildSummary(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -159,5 +172,5 @@ public class ShopService {
         int v = rs.getInt(col); return rs.wasNull() ? null : v;
     }
 
-    private record ShopItemRow(int itemId, int goldPrice, int purchaseQuantity) {}
+    private record ShopItemRow(int itemId, int goldPrice, int purchaseQuantity, Integer skinId) {}
 }

@@ -11,6 +11,7 @@ public class ShopItemResponse {
     private String detailSummary;
     private int goldPrice;
     private int purchaseQuantity;
+    private Integer skinId;
 
     public int getShopItemId() { return shopItemId; }
     public void setShopItemId(int shopItemId) { this.shopItemId = shopItemId; }
@@ -38,4 +39,7 @@ public class ShopItemResponse {
 
     public int getPurchaseQuantity() { return purchaseQuantity; }
     public void setPurchaseQuantity(int purchaseQuantity) { this.purchaseQuantity = purchaseQuantity; }
+
+    public Integer getSkinId() { return skinId; }
+    public void setSkinId(Integer skinId) { this.skinId = skinId; }
 }
