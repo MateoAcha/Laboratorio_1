@@ -53,6 +53,7 @@ public class GameStateController {
     public static class GameStateBody {
         public List<EnemyData>      enemies     = new ArrayList<>();
         public List<ProjectileData> projectiles = new ArrayList<>();
+        public List<RockData>       rocks       = new ArrayList<>();
     }
 
     public static class EnemyData {
@@ -64,5 +65,9 @@ public class GameStateController {
     public static class ProjectileData {
         public int   id;
         public float x, y, vx, vy, life;
+    }
+
+    public static class RockData {
+        public float x, y, size;
     }
 }
