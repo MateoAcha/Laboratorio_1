@@ -30,6 +30,7 @@ public class UserController {
     private final JwtService jwtService;
     private final InventoryService inventoryService;
     private final SkinService skinService;
+    private final DailyCoinsService dailyCoinsService;
 
     public UserController(
             UserRepository repository,
@@ -37,13 +38,15 @@ public class UserController {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             InventoryService inventoryService,
-            SkinService skinService) {
+            SkinService skinService,
+            DailyCoinsService dailyCoinsService) {
         this.repository = repository;
         this.playerStatsRepository = playerStatsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.inventoryService = inventoryService;
         this.skinService = skinService;
+        this.dailyCoinsService = dailyCoinsService;
     }
 
     @PostMapping
@@ -100,6 +103,16 @@ public class UserController {
     public User getUserById(@PathVariable Integer id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    @GetMapping("/me/daily-coins")
+    public DailyCoinsResponse getDailyCoinsStatus() {
+        return dailyCoinsService.getStatus(authenticatedUsername());
+    }
+
+    @PostMapping("/me/daily-coins/claim")
+    public DailyCoinsResponse claimDailyCoins() {
+        return dailyCoinsService.claim(authenticatedUsername());
     }
 
     @GetMapping("/{id}/stats")
@@ -251,14 +264,19 @@ public class UserController {
     }
 
     private void ensureSameAuthenticatedUser(User user) {
+        String username = authenticatedUsername();
+        if (!username.equals(user.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own stats");
+        }
+    }
+
+    private String authenticatedUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
 
-        if (!auth.getName().equals(user.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own stats");
-        }
+        return auth.getName();
     }
 
     private User withSessionToken(User user) {

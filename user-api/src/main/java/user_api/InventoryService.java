@@ -58,6 +58,22 @@ public class InventoryService {
                 userId, quantity);
     }
 
+    public int getGoldCoins(Integer userId) {
+        if (userId == null) {
+            return 0;
+        }
+
+        Integer total = jdbcTemplate.queryForObject(
+                """
+                SELECT COALESCE(MAX(quantity), 0)
+                FROM user_inventory
+                WHERE user_id = ? AND item_id = 1004
+                """,
+                Integer.class,
+                userId);
+        return total != null ? total : 0;
+    }
+
     public UserInventoryResponse getInventory(Integer userId) {
         ensureStarterInventory(userId);
 
@@ -77,6 +93,8 @@ public class InventoryService {
                     w.range,
                     w.fire_rate,
                     w.ammo_type,
+                    w.weapon_type,
+                    w.weapon_color,
                     a.defense,
                     a.durability,
                     a.weight,
@@ -108,6 +126,8 @@ public class InventoryService {
 
                     Timestamp acquiredAt = rs.getTimestamp("acquired_at");
                     item.setAcquiredAt(acquiredAt != null ? acquiredAt.toLocalDateTime().toString() : null);
+                    item.setWeaponType(rs.getString("weapon_type"));
+                    item.setWeaponColor(rs.getString("weapon_color"));
                     item.setDetailSummary(buildDetailSummary(rs));
                     return item;
                 },

@@ -28,16 +28,19 @@ public class ShopService {
                     s.gold_price,
                     s.purchase_quantity,
                     s.skin_id,
+                    sk.skin_color,
                     i.item_id,
                     i.item_name,
                     i.item_type,
                     i.rarity,
                     i.description,
                     w.damage, w.accuracy, w.range,
+                    w.weapon_type, w.weapon_color,
                     a.defense, a.durability,
                     c.effect_description, c.cooldown_seconds
                 FROM shop_item s
                 JOIN item i ON i.item_id = s.item_id
+                LEFT JOIN skin sk ON sk.skin_id = s.skin_id
                 LEFT JOIN weapon w ON w.item_id = i.item_id
                 LEFT JOIN armor a ON a.item_id = i.item_id
                 LEFT JOIN consumable c ON c.item_id = i.item_id
@@ -51,11 +54,14 @@ public class ShopService {
                     item.setPurchaseQuantity(rs.getInt("purchase_quantity"));
                     int skinIdRaw = rs.getInt("skin_id");
                     item.setSkinId(rs.wasNull() ? null : skinIdRaw);
+                    item.setSkinColor(rs.getString("skin_color"));
                     item.setItemId(rs.getInt("item_id"));
                     item.setItemName(rs.getString("item_name"));
                     item.setItemType(rs.getString("item_type"));
                     item.setRarity(rs.getString("rarity"));
                     item.setDescription(rs.getString("description"));
+                    item.setWeaponType(rs.getString("weapon_type"));
+                    item.setWeaponColor(rs.getString("weapon_color"));
                     item.setDetailSummary(buildSummary(rs));
                     return item;
                 });

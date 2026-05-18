@@ -6,11 +6,14 @@ CREATE TABLE IF NOT EXISTS users (
     premium_since TIMESTAMP NULL,
     premium_until TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_daily_coins_claimed_at TIMESTAMP NULL,
     password VARCHAR(255) NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_users_username ON users (username);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_users_email ON users (email);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_daily_coins_claimed_at TIMESTAMP NULL;
 
 CREATE TABLE IF NOT EXISTS item (
     item_id INT PRIMARY KEY,
@@ -26,8 +29,15 @@ CREATE TABLE IF NOT EXISTS weapon (
     accuracy REAL NOT NULL,
     range REAL NOT NULL,
     fire_rate REAL NULL,
-    ammo_type VARCHAR(128) NULL
+    ammo_type VARCHAR(128) NULL,
+    weapon_type VARCHAR(32) NULL,
+    weapon_color VARCHAR(9) NULL,
+    CONSTRAINT ck_weapon_weapon_type CHECK (weapon_type IS NULL OR weapon_type IN ('Spear', 'Sword', 'Ranged')),
+    CONSTRAINT ck_weapon_weapon_color CHECK (weapon_color IS NULL OR weapon_color ~ '^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$')
 );
+
+ALTER TABLE weapon ADD COLUMN IF NOT EXISTS weapon_type VARCHAR(32) NULL CHECK (weapon_type IS NULL OR weapon_type IN ('Spear', 'Sword', 'Ranged'));
+ALTER TABLE weapon ADD COLUMN IF NOT EXISTS weapon_color VARCHAR(9) NULL CHECK (weapon_color IS NULL OR weapon_color ~ '^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$');
 
 CREATE TABLE IF NOT EXISTS armor (
     item_id INT PRIMARY KEY REFERENCES item(item_id) ON DELETE CASCADE,
@@ -58,8 +68,11 @@ CREATE TABLE IF NOT EXISTS skin (
     skin_id INT PRIMARY KEY,
     skin_name VARCHAR(255) NOT NULL,
     rarity VARCHAR(64) NOT NULL,
+    skin_color VARCHAR(9) NULL CHECK (skin_color IS NULL OR skin_color ~ '^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$'),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE skin ADD COLUMN IF NOT EXISTS skin_color VARCHAR(9) NULL CHECK (skin_color IS NULL OR skin_color ~ '^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$');
 
 CREATE TABLE IF NOT EXISTS user_skin (
     user_skin_id INT PRIMARY KEY,
@@ -81,8 +94,6 @@ CREATE SEQUENCE IF NOT EXISTS user_skin_seq START WITH 1 INCREMENT BY 1;
 
 ALTER TABLE user_skin ADD COLUMN IF NOT EXISTS is_equipped BOOLEAN NOT NULL DEFAULT FALSE;
 
-ALTER TABLE shop_item ADD COLUMN IF NOT EXISTS skin_id INT REFERENCES skin(skin_id);
-
 CREATE SEQUENCE IF NOT EXISTS user_inventory_seq START WITH 1 INCREMENT BY 1;
 
 CREATE TABLE IF NOT EXISTS user_inventory (
@@ -102,3 +113,5 @@ CREATE TABLE IF NOT EXISTS shop_item (
     purchase_quantity INT NOT NULL DEFAULT 1 CHECK (purchase_quantity > 0),
     is_available BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+ALTER TABLE shop_item ADD COLUMN IF NOT EXISTS skin_id INT REFERENCES skin(skin_id);

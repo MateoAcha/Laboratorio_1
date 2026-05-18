@@ -5,6 +5,7 @@ public class SkinResponse {
     private int skinId;
     private String skinName;
     private String rarity;
+    private String skinColor;
     private boolean equipped;
 
     public int getSkinId() { return skinId; }
@@ -15,6 +16,9 @@ public class SkinResponse {
 
     public String getRarity() { return rarity; }
     public void setRarity(String rarity) { this.rarity = rarity; }
+
+    public String getSkinColor() { return skinColor; }
+    public void setSkinColor(String skinColor) { this.skinColor = skinColor; }
 
     public boolean isEquipped() { return equipped; }
     public void setEquipped(boolean equipped) { this.equipped = equipped; }

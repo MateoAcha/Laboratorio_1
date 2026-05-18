@@ -42,6 +42,9 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "last_daily_coins_claimed_at")
+    private LocalDateTime lastDailyCoinsClaimedAt;
+
     @Column(nullable = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
@@ -62,6 +65,7 @@ public class User {
             LocalDateTime premiumSince,
             LocalDateTime premiumUntil,
             LocalDateTime createdAt,
+            LocalDateTime lastDailyCoinsClaimedAt,
             String password) {
         this.userId = userId;
         this.username = username;
@@ -70,7 +74,29 @@ public class User {
         this.premiumSince = premiumSince;
         this.premiumUntil = premiumUntil;
         this.createdAt = createdAt;
+        this.lastDailyCoinsClaimedAt = lastDailyCoinsClaimedAt;
         this.password = password;
+    }
+
+    public User(
+            Integer userId,
+            String username,
+            String email,
+            Boolean isPremium,
+            LocalDateTime premiumSince,
+            LocalDateTime premiumUntil,
+            LocalDateTime createdAt,
+            String password) {
+        this(
+                userId,
+                username,
+                email,
+                isPremium,
+                premiumSince,
+                premiumUntil,
+                createdAt,
+                null,
+                password);
     }
 
     @PrePersist
@@ -147,6 +173,14 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getLastDailyCoinsClaimedAt() {
+        return lastDailyCoinsClaimedAt;
+    }
+
+    public void setLastDailyCoinsClaimedAt(LocalDateTime lastDailyCoinsClaimedAt) {
+        this.lastDailyCoinsClaimedAt = lastDailyCoinsClaimedAt;
     }
 
     public String getPassword() {

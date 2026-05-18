@@ -19,7 +19,7 @@ public class SkinService {
     public UserSkinsResponse getUserSkins(int userId) {
         List<SkinResponse> skins = jdbcTemplate.query(
                 """
-                SELECT s.skin_id, s.skin_name, s.rarity, us.is_equipped
+                SELECT s.skin_id, s.skin_name, s.rarity, s.skin_color, us.is_equipped
                 FROM user_skin us
                 JOIN skin s ON s.skin_id = us.skin_id
                 WHERE us.user_id = ?
@@ -30,6 +30,7 @@ public class SkinService {
                     skin.setSkinId(rs.getInt("skin_id"));
                     skin.setSkinName(rs.getString("skin_name"));
                     skin.setRarity(rs.getString("rarity"));
+                    skin.setSkinColor(rs.getString("skin_color"));
                     skin.setEquipped(rs.getBoolean("is_equipped"));
                     return skin;
                 },

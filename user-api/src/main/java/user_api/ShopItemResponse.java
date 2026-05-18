@@ -12,6 +12,9 @@ public class ShopItemResponse {
     private int goldPrice;
     private int purchaseQuantity;
     private Integer skinId;
+    private String skinColor;
+    private String weaponType;
+    private String weaponColor;
 
     public int getShopItemId() { return shopItemId; }
     public void setShopItemId(int shopItemId) { this.shopItemId = shopItemId; }
@@ -42,4 +45,13 @@ public class ShopItemResponse {
 
     public Integer getSkinId() { return skinId; }
     public void setSkinId(Integer skinId) { this.skinId = skinId; }
+
+    public String getSkinColor() { return skinColor; }
+    public void setSkinColor(String skinColor) { this.skinColor = skinColor; }
+
+    public String getWeaponType() { return weaponType; }
+    public void setWeaponType(String weaponType) { this.weaponType = weaponType; }
+
+    public String getWeaponColor() { return weaponColor; }
+    public void setWeaponColor(String weaponColor) { this.weaponColor = weaponColor; }
 }

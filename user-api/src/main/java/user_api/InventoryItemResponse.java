@@ -11,6 +11,8 @@ public class InventoryItemResponse {
     private Integer quantity;
     private String acquiredAt;
     private String detailSummary;
+    private String weaponType;
+    private String weaponColor;
 
     public Integer getUserInventoryId() {
         return userInventoryId;
@@ -82,5 +84,21 @@ public class InventoryItemResponse {
 
     public void setDetailSummary(String detailSummary) {
         this.detailSummary = detailSummary;
+    }
+
+    public String getWeaponType() {
+        return weaponType;
+    }
+
+    public void setWeaponType(String weaponType) {
+        this.weaponType = weaponType;
+    }
+
+    public String getWeaponColor() {
+        return weaponColor;
+    }
+
+    public void setWeaponColor(String weaponColor) {
+        this.weaponColor = weaponColor;
     }
 }

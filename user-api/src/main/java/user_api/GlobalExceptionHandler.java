@@ -22,6 +22,13 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", message));
     }
 
+    @ExceptionHandler(DailyCoinsCooldownException.class)
+    public ResponseEntity<DailyCoinsResponse> handleDailyCoinsCooldown(DailyCoinsCooldownException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ex.getResponse());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
         return ResponseEntity

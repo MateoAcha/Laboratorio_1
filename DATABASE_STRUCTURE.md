@@ -40,6 +40,7 @@ Columns:
 - `premium_since` `DATETIME` `NULL`
 - `premium_until` `DATETIME` `NULL`
 - `created_at` `DATETIME` `NOT NULL`
+- `last_daily_coins_claimed_at` `DATETIME` `NULL`
 - `password` `STRING` `NOT NULL`
 
 Notes:
@@ -48,6 +49,8 @@ Notes:
   - `POST /users`
   - `GET /users/{id}`
   - `GET /users/{id}/inventory` (ownership lookup)
+  - `GET /users/me/daily-coins`
+  - `POST /users/me/daily-coins/claim`
 
 ---
 
@@ -77,6 +80,12 @@ Columns:
 - `range` `FLOAT` `NOT NULL`
 - `fire_rate` `FLOAT` `NULL`
 - `ammo_type` `STRING` `NULL`
+- `weapon_type` `STRING` `NULL`
+- `weapon_color` `STRING` `NULL`
+
+Notes:
+- `weapon_type` is constrained to `Spear`, `Sword`, `Ranged`, or `NULL`.
+- `weapon_color` is constrained to hex `#RRGGBB` or `#RRGGBBAA`, or `NULL`.
 
 ### `armor`
 Columns:
@@ -108,7 +117,11 @@ Columns:
 - `skin_id` `INT` `PRIMARY KEY` `NOT NULL`
 - `skin_name` `STRING` `NOT NULL`
 - `rarity` `STRING` `NOT NULL`
+- `skin_color` `STRING` `NULL`
 - `created_at` `DATETIME` `NOT NULL`
+
+Notes:
+- `skin_color` is constrained to hex `#RRGGBB` or `#RRGGBBAA`, or `NULL`.
 
 ### `user_skin`
 Columns:
