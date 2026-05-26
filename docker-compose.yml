@@ -1,5 +1,3 @@
-version: '3.9'
-
 # ─────────────────────────────────────────────────────────────────────────────
 # KEY CONCEPT: "services" are the containers that make up the application.
 # Docker Compose starts them all with a single command and lets them talk to
