@@ -9,7 +9,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,7 +46,7 @@ public class LobbyController {
             roomNumber = nextRoomNumber.getAndIncrement();
         } while (rooms.containsKey(roomNumber));
 
-        RoomEntry room = new RoomEntry(roomNumber);
+        RoomEntry room = new RoomEntry(roomNumber, username);
         room.players.put(username, new LobbyEntry(username, "", "", "", 0f, 0f, System.currentTimeMillis()));
         rooms.put(roomNumber, room);
         return room.toSummary();
@@ -57,8 +56,16 @@ public class LobbyController {
     public LobbyResponse ping(@RequestBody PingRequest req) {
         String username = authenticatedUsername();
         int roomNumber = req.roomNumber > 0 ? req.roomNumber : 1;
-        RoomEntry room = rooms.computeIfAbsent(roomNumber, RoomEntry::new);
+        RoomEntry room = rooms.get(roomNumber);
+        if (room == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lobby closed.");
+        }
         pruneInactiveRoom(room);
+
+        if (room.players.isEmpty()) {
+            rooms.remove(roomNumber);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lobby closed.");
+        }
 
         if (!room.players.containsKey(username) && room.players.size() >= MAX_PLAYERS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Lobby is full.");
@@ -92,10 +99,17 @@ public class LobbyController {
     @PostMapping("/start")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void start(@RequestParam(defaultValue = "1") int roomNumber) {
-        authenticatedUsername();
+        String username = authenticatedUsername();
         RoomEntry room = rooms.get(roomNumber);
         if (room == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lobby not found.");
+        }
+        if (!username.equals(room.hostUsername)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the host can start this lobby.");
+        }
+        pruneInactiveRoom(room);
+        if (room.players.size() < MAX_PLAYERS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lobby needs two players to start.");
         }
         room.startedAt = System.currentTimeMillis();
     }
@@ -106,7 +120,13 @@ public class LobbyController {
         RoomEntry room = rooms.get(roomNumber);
         if (room == null) return;
 
-        room.players.remove(authenticatedUsername());
+        String username = authenticatedUsername();
+        if (username.equals(room.hostUsername)) {
+            rooms.remove(roomNumber);
+            return;
+        }
+
+        room.players.remove(username);
         if (room.players.isEmpty()) {
             rooms.remove(roomNumber);
         }
@@ -123,7 +143,14 @@ public class LobbyController {
         long now = System.currentTimeMillis();
         long cutoff = now - ACTIVE_MS;
         room.players.entrySet().removeIf(e -> e.getValue().lastPingAt < cutoff);
+        if (!room.players.containsKey(room.hostUsername)) {
+            room.players.clear();
+        }
         if (room.players.isEmpty()) room.startedAt = 0;
+    }
+
+    public void closeRoom(int roomNumber) {
+        rooms.remove(roomNumber);
     }
 
     private String authenticatedUsername() {
@@ -138,11 +165,13 @@ public class LobbyController {
 
     private static class RoomEntry {
         final int roomNumber;
+        final String hostUsername;
         final ConcurrentHashMap<String, LobbyEntry> players = new ConcurrentHashMap<>();
         volatile long startedAt = 0;
 
-        RoomEntry(int roomNumber) {
+        RoomEntry(int roomNumber, String hostUsername) {
             this.roomNumber = roomNumber;
+            this.hostUsername = hostUsername;
         }
 
         RoomSummary toSummary() {

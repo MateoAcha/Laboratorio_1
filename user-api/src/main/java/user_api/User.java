@@ -30,6 +30,12 @@ public class User {
     @Column(nullable = false)
     private String email;
 
+    @Column(name = "account_type", nullable = false)
+    private String accountType;
+
+    @Column(name = "google_subject", unique = true)
+    private String googleSubject;
+
     @Column(name = "is_premium", nullable = false)
     private Boolean isPremium;
 
@@ -45,7 +51,7 @@ public class User {
     @Column(name = "last_daily_coins_claimed_at")
     private LocalDateTime lastDailyCoinsClaimedAt;
 
-    @Column(nullable = false)
+    @Column
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
@@ -76,6 +82,7 @@ public class User {
         this.createdAt = createdAt;
         this.lastDailyCoinsClaimedAt = lastDailyCoinsClaimedAt;
         this.password = password;
+        this.accountType = "LOCAL";
     }
 
     public User(
@@ -107,6 +114,10 @@ public class User {
 
         if (isPremium == null) {
             isPremium = Boolean.FALSE;
+        }
+
+        if (accountType == null || accountType.isBlank()) {
+            accountType = "LOCAL";
         }
 
         if (Boolean.TRUE.equals(isPremium) && premiumSince == null) {
@@ -141,6 +152,22 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    public void setGoogleSubject(String googleSubject) {
+        this.googleSubject = googleSubject;
     }
 
     public Boolean getIsPremium() {

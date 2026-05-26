@@ -27,8 +27,10 @@ class UserControllerDailyCoinsTests {
                 mock(PasswordEncoder.class),
                 mock(JwtService.class),
                 mock(InventoryService.class),
+                mock(SkillTreeService.class),
                 mock(SkinService.class),
-                dailyCoinsService);
+                dailyCoinsService,
+                mock(GoogleTokenVerifier.class));
 
         SecurityContextHolder.clearContext();
 

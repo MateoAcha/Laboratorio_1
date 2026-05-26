@@ -17,8 +17,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class GameWebSocketHandler extends TextWebSocketHandler {
 
+    private final LobbyController lobbyController;
     private final ConcurrentHashMap<Integer, RoomSessions> rooms = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> sessionRooms = new ConcurrentHashMap<>();
+
+    public GameWebSocketHandler(LobbyController lobbyController) {
+        this.lobbyController = lobbyController;
+    }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
@@ -71,7 +76,19 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         RoomSessions room = rooms.get(roomNumber);
         if (room == null) return;
 
-        if (session == room.hostSession)  room.hostSession  = null;
+        if (session == room.hostSession) {
+            room.hostSession = null;
+            lobbyController.closeRoom(roomNumber);
+            WebSocketSession guest = room.guestSession;
+            if (guest != null && guest.isOpen()) {
+                try {
+                    synchronized (guest) {
+                        guest.sendMessage(new TextMessage("{\"type\":\"host_left\"}"));
+                    }
+                } catch (IOException ignored) {
+                }
+            }
+        }
         if (session == room.guestSession) room.guestSession = null;
         if (room.hostSession == null && room.guestSession == null) rooms.remove(roomNumber);
     }

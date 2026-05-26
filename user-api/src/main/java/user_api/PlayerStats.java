@@ -34,6 +34,9 @@ public class PlayerStats {
     @Column(name = "ranged_enemies_killed", nullable = false)
     private Integer rangedEnemiesKilled;
 
+    @Column(name = "giant_enemies_killed")
+    private Integer giantEnemiesKilled;
+
     @Column(name = "deaths", nullable = false)
     private Integer deaths;
 
@@ -49,6 +52,18 @@ public class PlayerStats {
     @Column(name = "coins", nullable = false)
     private Integer coins;
 
+    @Column(name = "total_xp", nullable = false)
+    private Long totalXp;
+
+    @Column(name = "level", nullable = false)
+    private Integer level;
+
+    @Column(name = "unspent_skill_points", nullable = false)
+    private Integer unspentSkillPoints;
+
+    @Column(name = "spent_skill_points", nullable = false)
+    private Integer spentSkillPoints;
+
     public PlayerStats() {
     }
 
@@ -57,11 +72,16 @@ public class PlayerStats {
         if (matchesPlayed == null) matchesPlayed = 0;
         if (meleeEnemiesKilled == null) meleeEnemiesKilled = 0;
         if (rangedEnemiesKilled == null) rangedEnemiesKilled = 0;
+        if (giantEnemiesKilled == null) giantEnemiesKilled = 0;
         if (deaths == null) deaths = 0;
         if (gamesWon == null) gamesWon = 0;
         if (highScore == null) highScore = 0;
         if (timePlayedSeconds == null) timePlayedSeconds = 0L;
         if (coins == null) coins = 0;
+        if (totalXp == null) totalXp = 0L;
+        if (level == null || level < 1) level = 1;
+        if (unspentSkillPoints == null) unspentSkillPoints = 0;
+        if (spentSkillPoints == null) spentSkillPoints = 0;
     }
 
     public Integer getUserId() {
@@ -104,6 +124,14 @@ public class PlayerStats {
         this.rangedEnemiesKilled = rangedEnemiesKilled;
     }
 
+    public Integer getGiantEnemiesKilled() {
+        return giantEnemiesKilled != null ? giantEnemiesKilled : 0;
+    }
+
+    public void setGiantEnemiesKilled(Integer giantEnemiesKilled) {
+        this.giantEnemiesKilled = giantEnemiesKilled;
+    }
+
     public Integer getDeaths() {
         return deaths;
     }
@@ -142,5 +170,37 @@ public class PlayerStats {
 
     public void setCoins(Integer coins) {
         this.coins = coins;
+    }
+
+    public Long getTotalXp() {
+        return totalXp != null ? totalXp : 0L;
+    }
+
+    public void setTotalXp(Long totalXp) {
+        this.totalXp = totalXp;
+    }
+
+    public Integer getLevel() {
+        return level != null && level > 0 ? level : 1;
+    }
+
+    public void setLevel(Integer level) {
+        this.level = level;
+    }
+
+    public Integer getUnspentSkillPoints() {
+        return unspentSkillPoints != null ? unspentSkillPoints : 0;
+    }
+
+    public void setUnspentSkillPoints(Integer unspentSkillPoints) {
+        this.unspentSkillPoints = unspentSkillPoints;
+    }
+
+    public Integer getSpentSkillPoints() {
+        return spentSkillPoints != null ? spentSkillPoints : 0;
+    }
+
+    public void setSpentSkillPoints(Integer spentSkillPoints) {
+        this.spentSkillPoints = spentSkillPoints;
     }
 }

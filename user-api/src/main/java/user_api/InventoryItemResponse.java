@@ -11,8 +11,10 @@ public class InventoryItemResponse {
     private Integer quantity;
     private String acquiredAt;
     private String detailSummary;
+    private String materialKey;
     private String weaponType;
     private String weaponColor;
+    private Boolean equipped;
 
     public Integer getUserInventoryId() {
         return userInventoryId;
@@ -86,6 +88,14 @@ public class InventoryItemResponse {
         this.detailSummary = detailSummary;
     }
 
+    public String getMaterialKey() {
+        return materialKey;
+    }
+
+    public void setMaterialKey(String materialKey) {
+        this.materialKey = materialKey;
+    }
+
     public String getWeaponType() {
         return weaponType;
     }
@@ -100,5 +110,13 @@ public class InventoryItemResponse {
 
     public void setWeaponColor(String weaponColor) {
         this.weaponColor = weaponColor;
+    }
+
+    public Boolean getEquipped() {
+        return equipped;
+    }
+
+    public void setEquipped(Boolean equipped) {
+        this.equipped = equipped;
     }
 }

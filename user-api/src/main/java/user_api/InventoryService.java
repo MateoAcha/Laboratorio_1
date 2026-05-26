@@ -1,9 +1,11 @@
 package user_api;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class InventoryService {
@@ -58,6 +60,145 @@ public class InventoryService {
                 userId, quantity);
     }
 
+    @Transactional
+    public void addMaterials(Integer userId, List<MaterialRewardRequest> materials) {
+        if (userId == null || materials == null || materials.isEmpty()) {
+            return;
+        }
+
+        for (MaterialRewardRequest material : materials) {
+            if (material == null || material.getQuantity() == null || material.getQuantity() <= 0) {
+                continue;
+            }
+
+            String materialKey = normalizeMaterialKey(material.getMaterialKey());
+            if (materialKey == null) {
+                continue;
+            }
+
+            int itemId = findOrCreateMaterialItem(
+                    materialKey,
+                    coalesceText(material.getItemName(), titleFromKey(materialKey)),
+                    coalesceText(material.getRarity(), "Rare"));
+
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO user_inventory (user_inventory_id, user_id, item_id, quantity, acquired_at)
+                    VALUES (nextval('user_inventory_seq'), ?, ?, ?, NOW())
+                    ON CONFLICT (user_id, item_id)
+                    DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+                    """,
+                    userId, itemId, material.getQuantity());
+        }
+    }
+
+    @Transactional
+    public void spendMaterial(Integer userId, String materialKey, int quantity) {
+        if (userId == null || quantity <= 0) {
+            throw new IllegalArgumentException("Invalid material quantity");
+        }
+
+        String normalizedMaterialKey = normalizeMaterialKey(materialKey);
+        if (normalizedMaterialKey == null) {
+            throw new IllegalArgumentException("Material is required");
+        }
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE user_inventory ui
+                SET quantity = ui.quantity - ?
+                WHERE ui.user_id = ?
+                  AND ui.item_id IN (
+                      SELECT item_id
+                      FROM material
+                      WHERE material_key = ?
+                  )
+                  AND ui.quantity >= ?
+                """,
+                quantity,
+                userId,
+                normalizedMaterialKey,
+                quantity);
+
+        if (updated <= 0) {
+            throw new IllegalArgumentException("Not enough " + titleFromKey(normalizedMaterialKey));
+        }
+    }
+
+    @Transactional
+    public ChallengeClaimResponse claimChallengeReward(
+            Integer userId,
+            Integer challengeId,
+            String challengeKey,
+            int rewardCoins) {
+
+        if (userId == null || challengeId == null) {
+            throw new IllegalArgumentException("userId and challengeId are required");
+        }
+
+        Integer existingId = jdbcTemplate.query(
+                """
+                SELECT challenge_id
+                FROM user_challenge_claim
+                WHERE user_id = ? AND challenge_id = ?
+                """,
+                rs -> rs.next() ? rs.getInt("challenge_id") : null,
+                userId,
+                challengeId);
+
+        if (existingId != null) {
+            return new ChallengeClaimResponse(challengeId, coalesceText(challengeKey, ""), 0, true);
+        }
+
+        String safeChallengeKey = coalesceText(challengeKey, "challenge_" + challengeId);
+        int safeRewardCoins = Math.max(0, rewardCoins);
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO user_challenge_claim (user_id, challenge_id, challenge_key, reward_coins, claimed_at)
+                VALUES (?, ?, ?, ?, NOW())
+                """,
+                userId,
+                challengeId,
+                safeChallengeKey,
+                safeRewardCoins);
+
+        addCoins(userId, safeRewardCoins);
+        return new ChallengeClaimResponse(challengeId, safeChallengeKey, safeRewardCoins, false);
+    }
+
+    public ChallengeClaimsResponse getClaimedChallengeRewards(Integer userId) {
+        List<ChallengeClaimResponse> claims = jdbcTemplate.query(
+                """
+                SELECT challenge_id, challenge_key, reward_coins, claimed_at
+                FROM user_challenge_claim
+                WHERE user_id = ?
+                ORDER BY challenge_id
+                """,
+                (rs, rowNum) -> {
+                    ChallengeClaimResponse claim = new ChallengeClaimResponse(
+                            rs.getInt("challenge_id"),
+                            rs.getString("challenge_key"),
+                            rs.getInt("reward_coins"),
+                            true);
+                    Timestamp claimedAt = rs.getTimestamp("claimed_at");
+                    claim.setClaimedAt(claimedAt != null ? claimedAt.toLocalDateTime().toString() : null);
+                    return claim;
+                },
+                userId);
+
+        ChallengeClaimsResponse response = new ChallengeClaimsResponse();
+        response.setClaims(claims);
+
+        List<Integer> ids = new ArrayList<>();
+        for (ChallengeClaimResponse claim : claims) {
+            ids.add(claim.getChallengeId());
+        }
+        response.setClaimedChallengeIds(ids);
+
+        return response;
+    }
+
     public int getGoldCoins(Integer userId) {
         if (userId == null) {
             return 0;
@@ -76,6 +217,7 @@ public class InventoryService {
 
     public UserInventoryResponse getInventory(Integer userId) {
         ensureStarterInventory(userId);
+        ensureDefaultEquippedItems(userId);
 
         List<InventoryItemResponse> items = jdbcTemplate.query(
                 """
@@ -88,6 +230,7 @@ public class InventoryService {
                     i.description,
                     ui.quantity,
                     ui.acquired_at,
+                    ui.is_equipped,
                     w.damage,
                     w.accuracy,
                     w.range,
@@ -103,6 +246,7 @@ public class InventoryService {
                     c.cooldown_seconds,
                     cur.currency_code,
                     cur.is_tradeable,
+                    m.material_key,
                     m.material_grade
                 FROM user_inventory ui
                 JOIN item i ON i.item_id = ui.item_id
@@ -123,11 +267,13 @@ public class InventoryService {
                     item.setRarity(rs.getString("rarity"));
                     item.setDescription(rs.getString("description"));
                     item.setQuantity(rs.getInt("quantity"));
+                    item.setEquipped(rs.getBoolean("is_equipped"));
 
                     Timestamp acquiredAt = rs.getTimestamp("acquired_at");
                     item.setAcquiredAt(acquiredAt != null ? acquiredAt.toLocalDateTime().toString() : null);
                     item.setWeaponType(rs.getString("weapon_type"));
                     item.setWeaponColor(rs.getString("weapon_color"));
+                    item.setMaterialKey(rs.getString("material_key"));
                     item.setDetailSummary(buildDetailSummary(rs));
                     return item;
                 },
@@ -137,6 +283,104 @@ public class InventoryService {
         response.setUserId(userId);
         response.setItems(items);
         return response;
+    }
+
+    @Transactional
+    public UserInventoryResponse equipInventoryItem(Integer userId, Integer userInventoryId) {
+        if (userId == null || userInventoryId == null) {
+            throw new IllegalArgumentException("Item is required");
+        }
+
+        EquippedItemTarget target = jdbcTemplate.query(
+                """
+                SELECT ui.user_inventory_id, i.item_type
+                FROM user_inventory ui
+                JOIN item i ON i.item_id = ui.item_id
+                WHERE ui.user_id = ?
+                  AND ui.user_inventory_id = ?
+                  AND ui.quantity > 0
+                """,
+                rs -> rs.next()
+                        ? new EquippedItemTarget(rs.getInt("user_inventory_id"), rs.getString("item_type"))
+                        : null,
+                userId,
+                userInventoryId);
+
+        if (target == null) {
+            throw new IllegalArgumentException("Item is not in this inventory");
+        }
+
+        if (!isEquippableType(target.itemType())) {
+            throw new IllegalArgumentException("Item cannot be equipped");
+        }
+
+        jdbcTemplate.update(
+                """
+                UPDATE user_inventory ui
+                SET is_equipped = FALSE
+                FROM item i
+                WHERE i.item_id = ui.item_id
+                  AND ui.user_id = ?
+                  AND LOWER(i.item_type) = LOWER(?)
+                """,
+                userId,
+                target.itemType());
+
+        jdbcTemplate.update(
+                """
+                UPDATE user_inventory
+                SET is_equipped = TRUE
+                WHERE user_id = ? AND user_inventory_id = ?
+                """,
+                userId,
+                target.userInventoryId());
+
+        return getInventory(userId);
+    }
+
+    private void ensureDefaultEquippedItems(Integer userId) {
+        if (userId == null) {
+            return;
+        }
+
+        for (String itemType : List.of("Weapon", "Armor", "Consumable")) {
+            jdbcTemplate.update(
+                    """
+                    UPDATE user_inventory
+                    SET is_equipped = TRUE
+                    WHERE user_inventory_id = (
+                        SELECT ui.user_inventory_id
+                        FROM user_inventory ui
+                        JOIN item i ON i.item_id = ui.item_id
+                        WHERE ui.user_id = ?
+                          AND LOWER(i.item_type) = LOWER(?)
+                          AND ui.quantity > 0
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM user_inventory equipped_ui
+                              JOIN item equipped_i ON equipped_i.item_id = equipped_ui.item_id
+                              WHERE equipped_ui.user_id = ui.user_id
+                                AND LOWER(equipped_i.item_type) = LOWER(i.item_type)
+                                AND equipped_ui.is_equipped = TRUE
+                                AND equipped_ui.quantity > 0
+                          )
+                        ORDER BY ui.user_inventory_id
+                        LIMIT 1
+                    )
+                    """,
+                    userId,
+                    itemType);
+        }
+    }
+
+    private boolean isEquippableType(String itemType) {
+        return itemType != null && (
+                itemType.equalsIgnoreCase("Weapon")
+                        || itemType.equalsIgnoreCase("Armor")
+                        || itemType.equalsIgnoreCase("Consumable"));
+    }
+
+    private record EquippedItemTarget(Integer userInventoryId, String itemType) {
     }
 
     private String buildDetailSummary(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -232,6 +476,122 @@ public class InventoryService {
             text.append(" | ");
         }
         text.append(value.trim());
+    }
+
+    private int findOrCreateMaterialItem(String materialKey, String itemName, String rarity) {
+        Integer existingItemId = jdbcTemplate.query(
+                "SELECT item_id FROM material WHERE material_key = ?",
+                rs -> rs.next() ? rs.getInt("item_id") : null,
+                materialKey);
+        if (existingItemId != null) {
+            return existingItemId;
+        }
+
+        Integer nextItemId = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(item_id), 1029) + 1 FROM item",
+                Integer.class);
+        if (nextItemId == null) {
+            nextItemId = 1030;
+        }
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO item (item_id, item_name, item_type, rarity, description)
+                VALUES (?, ?, 'Material', ?, ?)
+                """,
+                nextItemId,
+                itemName,
+                rarity,
+                "A map material collected from a giant.");
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO material (item_id, material_key, material_grade)
+                VALUES (?, ?, ?)
+                """,
+                nextItemId,
+                materialKey,
+                rarity);
+
+        return nextItemId;
+    }
+
+    private String normalizeMaterialKey(String materialKey) {
+        if (materialKey == null || materialKey.isBlank()) {
+            return null;
+        }
+
+        return materialKey.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private String coalesceText(String value, String fallback) {
+        return value != null && !value.isBlank() ? value.trim() : fallback;
+    }
+
+    private String titleFromKey(String materialKey) {
+        String[] parts = materialKey.split("_+");
+        StringBuilder title = new StringBuilder();
+        for (String part : parts) {
+            if (part.isBlank()) {
+                continue;
+            }
+            if (title.length() > 0) {
+                title.append(' ');
+            }
+            title.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                title.append(part.substring(1));
+            }
+        }
+        return title.length() > 0 ? title.toString() : "Map Material";
+    }
+
+    public static class MaterialRewardRequest {
+        private String materialKey;
+        private String itemName;
+        private String itemType;
+        private String rarity;
+        private Integer quantity;
+
+        public String getMaterialKey() {
+            return materialKey;
+        }
+
+        public void setMaterialKey(String materialKey) {
+            this.materialKey = materialKey;
+        }
+
+        public String getItemName() {
+            return itemName;
+        }
+
+        public void setItemName(String itemName) {
+            this.itemName = itemName;
+        }
+
+        public String getItemType() {
+            return itemType;
+        }
+
+        public void setItemType(String itemType) {
+            this.itemType = itemType;
+        }
+
+        public String getRarity() {
+            return rarity;
+        }
+
+        public void setRarity(String rarity) {
+            this.rarity = rarity;
+        }
+
+        public Integer getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(Integer quantity) {
+            this.quantity = quantity;
+        }
     }
 
     private Float getNullableFloat(java.sql.ResultSet rs, String column) throws java.sql.SQLException {

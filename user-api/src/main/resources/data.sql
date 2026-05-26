@@ -26,6 +26,8 @@ INSERT INTO material (item_id, material_grade) VALUES
     (1005, 'Refined')
 ON CONFLICT (item_id) DO NOTHING;
 
+UPDATE material SET material_key = 'iron_ore' WHERE item_id = 1005 AND material_key IS NULL;
+
 INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
     (1006, 'Iron Spear',    'Weapon',     'Uncommon', 'A heavier spear forged from iron. More reach and power than the starter.'),
     (1007, 'Shadow Lance',  'Weapon',     'Rare',     'A lance imbued with dark energy. Exceptional damage and range.'),
@@ -55,6 +57,22 @@ INSERT INTO shop_item (shop_item_id, item_id, gold_price, purchase_quantity, is_
     (4, 1009, 500, 1, TRUE),
     (5, 1010,  50, 3, TRUE)
 ON CONFLICT (shop_item_id) DO NOTHING;
+
+INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
+    (1030, 'Green Fields Material', 'Material', 'Rare', 'A map material collected from giants in Green Fields.'),
+    (1031, 'Ash Basin Material',    'Material', 'Rare', 'A map material collected from giants in Ash Basin.'),
+    (1032, 'Moon Marsh Material',   'Material', 'Rare', 'A map material collected from giants in Moon Marsh.')
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO material (item_id, material_key, material_grade) VALUES
+    (1030, 'green_fields_material', 'Rare'),
+    (1031, 'ash_basin_material', 'Rare'),
+    (1032, 'moon_marsh_material', 'Rare')
+ON CONFLICT (item_id) DO NOTHING;
+
+UPDATE material SET material_key = 'green_fields_material', material_grade = 'Rare' WHERE item_id = 1030;
+UPDATE material SET material_key = 'ash_basin_material', material_grade = 'Rare' WHERE item_id = 1031;
+UPDATE material SET material_key = 'moon_marsh_material', material_grade = 'Rare' WHERE item_id = 1032;
 
 INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
     (1011, 'Long Spear',        'Weapon',     'Common',   'A spear with extended reach, trading striking power for range.'),

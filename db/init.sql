@@ -12,6 +12,12 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_daily_coins_claimed_at TIMESTAMP NULL;
 
+ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS giant_enemies_killed INT NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS total_xp BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS level INT NOT NULL DEFAULT 1;
+ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS unspent_skill_points INT NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS spent_skill_points INT NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS item (
     item_id INT PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
@@ -58,8 +64,12 @@ CREATE TABLE IF NOT EXISTS currency (
 
 CREATE TABLE IF NOT EXISTS material (
     item_id INT PRIMARY KEY REFERENCES item(item_id) ON DELETE CASCADE,
+    material_key VARCHAR(128) NULL,
     material_grade VARCHAR(64) NULL
 );
+
+ALTER TABLE material ADD COLUMN IF NOT EXISTS material_key VARCHAR(128) NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_material_material_key ON material (material_key) WHERE material_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS skin (
     skin_id INT PRIMARY KEY,
@@ -94,7 +104,28 @@ CREATE TABLE IF NOT EXISTS user_inventory (
     item_id INT NOT NULL REFERENCES item(item_id) ON DELETE CASCADE,
     quantity INT NOT NULL CHECK (quantity >= 0),
     acquired_at TIMESTAMP NULL,
+    is_equipped BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (user_id, item_id)
+);
+
+ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_equipped BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS user_skill (
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    skill_id VARCHAR(128) NOT NULL,
+    skill_level INT NOT NULL DEFAULT 0 CHECK (skill_level >= 0),
+    unlocked_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, skill_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_skill_loadout (
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    branch VARCHAR(32) NOT NULL,
+    slot_kind VARCHAR(32) NOT NULL,
+    skill_id VARCHAR(128) NOT NULL,
+    equipped_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, branch, slot_kind),
+    FOREIGN KEY (user_id, skill_id) REFERENCES user_skill(user_id, skill_id) ON DELETE CASCADE
 );
 
 INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
@@ -123,9 +154,11 @@ INSERT INTO currency (item_id, currency_code, is_tradeable) VALUES
     (1004, 'GOLD', TRUE)
 ON CONFLICT (item_id) DO NOTHING;
 
-INSERT INTO material (item_id, material_grade) VALUES
-    (1005, 'Refined')
+INSERT INTO material (item_id, material_key, material_grade) VALUES
+    (1005, 'iron_ore', 'Refined')
 ON CONFLICT (item_id) DO NOTHING;
+
+UPDATE material SET material_key = 'iron_ore' WHERE item_id = 1005 AND material_key IS NULL;
 
 INSERT INTO skin (skin_id, skin_name, rarity, skin_color, created_at) VALUES
     (2001, 'Crimson Edge', 'Rare', '#D90429', NOW()),
