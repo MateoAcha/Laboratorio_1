@@ -129,12 +129,14 @@ CREATE TABLE IF NOT EXISTS user_skill_loadout (
 );
 
 INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
-    (1001, 'Starter Spear', 'Weapon', 'Common', 'A reliable spear with reach that better matches the player attack style.'),
+    (1001, 'Windrunner Spear', 'Weapon', 'Common', 'A storm-blue spear inspired by Windrunner bridge crews and quick aerial strikes.'),
     (1002, 'Training Vest', 'Armor', 'Common', 'Basic armor with enough padding for early matches.'),
     (1003, 'Health Potion', 'Consumable', 'Uncommon', 'Restores vitality during long sessions.'),
     (1004, 'Gold Coins', 'Currency', 'Common', 'Standard soft currency used in the shop.'),
     (1005, 'Iron Ore', 'Material', 'Common', 'A crafting material used for simple upgrades.')
 ON CONFLICT (item_id) DO NOTHING;
+
+UPDATE item SET item_name = 'Windrunner Spear', description = 'A storm-blue spear inspired by Windrunner bridge crews and quick aerial strikes.' WHERE item_id = 1001;
 
 INSERT INTO weapon (item_id, damage, accuracy, range, fire_rate, ammo_type, weapon_type, weapon_color) VALUES
     (1001, 12, 0.92, 1.8, NULL, NULL, 'Spear', '#4CC9F0')
