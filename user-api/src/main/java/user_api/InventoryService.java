@@ -286,6 +286,27 @@ public class InventoryService {
     }
 
     @Transactional
+    public void consumeInventoryItem(Integer userId, Integer userInventoryId, int quantity) {
+        if (userId == null || userInventoryId == null || quantity <= 0) {
+            throw new IllegalArgumentException("Invalid consume request");
+        }
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE user_inventory
+                SET quantity = quantity - ?
+                WHERE user_id = ?
+                  AND user_inventory_id = ?
+                  AND quantity >= ?
+                """,
+                quantity, userId, userInventoryId, quantity);
+
+        if (updated <= 0) {
+            throw new IllegalArgumentException("Not enough consumable quantity");
+        }
+    }
+
+    @Transactional
     public UserInventoryResponse equipInventoryItem(Integer userId, Integer userInventoryId) {
         if (userId == null || userInventoryId == null) {
             throw new IllegalArgumentException("Item is required");

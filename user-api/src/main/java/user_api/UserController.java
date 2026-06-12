@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -270,6 +271,29 @@ public class UserController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
+    }
+
+    @PostMapping("/{id}/inventory/{userInventoryId}/consume")
+    public ResponseEntity<Void> consumeInventoryItem(
+            @PathVariable Integer id,
+            @PathVariable Integer userInventoryId,
+            @RequestBody(required = false) ConsumeRequest body) {
+
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        ensureSameAuthenticatedUser(user);
+        int quantity = (body != null && body.quantity > 0) ? body.quantity : 1;
+        try {
+            inventoryService.consumeInventoryItem(id, userInventoryId, quantity);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    static class ConsumeRequest {
+        public int quantity;
     }
 
     @GetMapping("/{id}/skills")
