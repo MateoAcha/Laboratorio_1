@@ -28,6 +28,67 @@ ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS level INT NOT NULL D
 ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS unspent_skill_points INT NOT NULL DEFAULT 0;
 ALTER TABLE IF EXISTS player_stats ADD COLUMN IF NOT EXISTS spent_skill_points INT NOT NULL DEFAULT 0;
 
+CREATE SEQUENCE IF NOT EXISTS friendship_seq START WITH 1 INCREMENT BY 1;
+
+CREATE TABLE IF NOT EXISTS friendship (
+    friendship_id BIGINT PRIMARY KEY DEFAULT nextval('friendship_seq'),
+    user_one_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_two_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_friendship_order CHECK (user_one_id < user_two_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_friendship_pair ON friendship (user_one_id, user_two_id);
+CREATE INDEX IF NOT EXISTS ix_friendship_user_one ON friendship (user_one_id);
+CREATE INDEX IF NOT EXISTS ix_friendship_user_two ON friendship (user_two_id);
+
+CREATE SEQUENCE IF NOT EXISTS friend_request_seq START WITH 1 INCREMENT BY 1;
+
+CREATE TABLE IF NOT EXISTS friend_request (
+    request_id BIGINT PRIMARY KEY DEFAULT nextval('friend_request_seq'),
+    requester_user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    recipient_user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    responded_at TIMESTAMP NULL,
+    canceled_at TIMESTAMP NULL,
+    CONSTRAINT ck_friend_request_not_self CHECK (requester_user_id <> recipient_user_id),
+    CONSTRAINT ck_friend_request_status CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'CANCELED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_friend_request_pending_direction
+    ON friend_request (requester_user_id, recipient_user_id)
+    WHERE status = 'PENDING';
+CREATE INDEX IF NOT EXISTS ix_friend_request_recipient_status
+    ON friend_request (recipient_user_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_friend_request_requester_status
+    ON friend_request (requester_user_id, status, created_at DESC);
+
+CREATE SEQUENCE IF NOT EXISTS game_invite_seq START WITH 1 INCREMENT BY 1;
+
+CREATE TABLE IF NOT EXISTS game_invite (
+    invite_id BIGINT PRIMARY KEY DEFAULT nextval('game_invite_seq'),
+    host_user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    recipient_user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    room_number INT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL,
+    responded_at TIMESTAMP NULL,
+    canceled_at TIMESTAMP NULL,
+    CONSTRAINT ck_game_invite_not_self CHECK (host_user_id <> recipient_user_id),
+    CONSTRAINT ck_game_invite_room CHECK (room_number > 0),
+    CONSTRAINT ck_game_invite_status CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CANCELED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_game_invite_pending_room
+    ON game_invite (host_user_id, recipient_user_id, room_number)
+    WHERE status = 'PENDING';
+CREATE INDEX IF NOT EXISTS ix_game_invite_recipient_status_expires
+    ON game_invite (recipient_user_id, status, expires_at);
+CREATE INDEX IF NOT EXISTS ix_game_invite_host_room_status
+    ON game_invite (host_user_id, room_number, status);
+
 CREATE TABLE IF NOT EXISTS item (
     item_id INT PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
