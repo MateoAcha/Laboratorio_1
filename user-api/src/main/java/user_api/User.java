@@ -55,10 +55,6 @@ public class User {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
-    @Column(name = "session_token")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String sessionToken;
-
     @Transient
     private String accessToken;
 
@@ -220,14 +216,6 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    public String getSessionToken() {
-        return sessionToken;
-    }
-
-    public void setSessionToken(String sessionToken) {
-        this.sessionToken = sessionToken;
     }
 
     public String getAccessToken() {

@@ -16,10 +16,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<User> findTopByOrderByUserIdDesc();
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("UPDATE User u SET u.sessionToken = :token WHERE u.userId = :userId")
-    void updateSessionToken(@Param("userId") Integer userId, @Param("token") String token);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE User u
             SET u.lastDailyCoinsClaimedAt = :claimedAt

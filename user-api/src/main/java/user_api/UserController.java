@@ -559,9 +559,7 @@ public class UserController {
     }
 
     private LoginResponse createLoginResponse(User user) {
-        String sessionToken = UUID.randomUUID().toString();
-        repository.updateSessionToken(user.getUserId(), sessionToken);
-        String token = jwtService.generateToken(user, sessionToken);
+        String token = jwtService.generateToken(user);
         return new LoginResponse(token, user.getUserId(), user.getUsername());
     }
 

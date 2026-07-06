@@ -19,14 +19,13 @@ public class JwtService {
     @Value("${security.jwt.expiration-ms:3600000}")
     private long jwtExpirationMs;
 
-    public String generateToken(User user, String sessionToken) {
+    public String generateToken(User user) {
         Date issuedAt = new Date();
         Date expiration = new Date(issuedAt.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .subject(user.getUsername())
                 .claim("userId", user.getUserId())
-                .claim("sessionToken", sessionToken)
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .signWith(getSigningKey())
@@ -44,15 +43,6 @@ public class JwtService {
 
     public String extractUsername(String token) {
         return parseClaims(token).getSubject();
-    }
-
-    public String extractSessionToken(String token) {
-        try {
-            Object claim = parseClaims(token).get("sessionToken");
-            return claim instanceof String s ? s : null;
-        } catch (Exception ex) {
-            return null;
-        }
     }
 
     private Claims parseClaims(String token) {
