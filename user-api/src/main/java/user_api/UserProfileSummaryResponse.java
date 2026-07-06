@@ -62,6 +62,7 @@ public class UserProfileSummaryResponse {
         private Integer highScore;
         private Long timePlayedSeconds;
         private Integer coins;
+        private Integer emeralds;
         private Long totalXp;
         private Integer level;
         private Integer unspentSkillPoints;
@@ -169,6 +170,14 @@ public class UserProfileSummaryResponse {
 
         public void setCoins(Integer coins) {
             this.coins = coins;
+        }
+
+        public Integer getEmeralds() {
+            return emeralds;
+        }
+
+        public void setEmeralds(Integer emeralds) {
+            this.emeralds = emeralds;
         }
 
         public Long getTotalXp() {

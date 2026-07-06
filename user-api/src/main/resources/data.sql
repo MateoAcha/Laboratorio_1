@@ -75,6 +75,14 @@ INSERT INTO material (item_id, material_key, material_grade) VALUES
     (1032, 'moon_marsh_material', 'Rare')
 ON CONFLICT (item_id) DO NOTHING;
 
+INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
+    (1033, 'Emeralds', 'Currency', 'Rare', 'Premium currency earned through special achievements.')
+ON CONFLICT (item_id) DO NOTHING;
+
+INSERT INTO currency (item_id, currency_code, is_tradeable) VALUES
+    (1033, 'EMERALD', FALSE)
+ON CONFLICT (item_id) DO NOTHING;
+
 UPDATE material SET material_key = 'green_fields_material', material_grade = 'Rare' WHERE item_id = 1030;
 UPDATE material SET material_key = 'ash_basin_material', material_grade = 'Rare' WHERE item_id = 1031;
 UPDATE material SET material_key = 'moon_marsh_material', material_grade = 'Rare' WHERE item_id = 1032;

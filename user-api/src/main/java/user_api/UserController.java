@@ -451,6 +451,15 @@ public class UserController {
         inventoryService.addCoins(id, Math.max(0, request.quantity));
     }
 
+    @PostMapping("/{id}/inventory/add-emeralds")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addEmeralds(@PathVariable Integer id, @RequestBody AddEmeraldsRequest request) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        inventoryService.addEmeralds(id, Math.max(0, request.quantity));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Integer id) {
@@ -928,6 +937,10 @@ public class UserController {
     private record PendingGoogleSignup(GoogleTokenVerifier.GoogleProfile profile, Instant expiresAt) {}
 
     static class AddCoinsRequest {
+        public int quantity;
+    }
+
+    static class AddEmeraldsRequest {
         public int quantity;
     }
 }

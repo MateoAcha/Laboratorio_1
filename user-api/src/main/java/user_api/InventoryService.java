@@ -215,6 +215,37 @@ public class InventoryService {
         return total != null ? total : 0;
     }
 
+    public void addEmeralds(Integer userId, int quantity) {
+        if (userId == null || quantity <= 0) {
+            return;
+        }
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO user_inventory (user_inventory_id, user_id, item_id, quantity, acquired_at)
+                VALUES (nextval('user_inventory_seq'), ?, 1033, ?, NOW())
+                ON CONFLICT (user_id, item_id)
+                DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+                """,
+                userId, quantity);
+    }
+
+    public int getEmeralds(Integer userId) {
+        if (userId == null) {
+            return 0;
+        }
+
+        Integer total = jdbcTemplate.queryForObject(
+                """
+                SELECT COALESCE(MAX(quantity), 0)
+                FROM user_inventory
+                WHERE user_id = ? AND item_id = 1033
+                """,
+                Integer.class,
+                userId);
+        return total != null ? total : 0;
+    }
+
     public UserInventoryResponse getInventory(Integer userId) {
         ensureStarterInventory(userId);
         ensureDefaultEquippedItems(userId);

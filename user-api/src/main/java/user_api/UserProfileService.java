@@ -74,6 +74,7 @@ public class UserProfileService {
         response.setHighScore(stats != null ? nullToZero(stats.getHighScore()) : 0);
         response.setTimePlayedSeconds(stats != null ? nullToZero(stats.getTimePlayedSeconds()) : 0L);
         response.setCoins(stats != null ? nullToZero(stats.getCoins()) : 0);
+        response.setEmeralds(inventoryService.getEmeralds(user.getUserId()));
         response.setTotalXp(stats != null ? nullToZero(stats.getTotalXp()) : 0L);
         response.setLevel(stats != null ? Math.max(1, nullToZero(stats.getLevel())) : 1);
         response.setUnspentSkillPoints(stats != null ? nullToZero(stats.getUnspentSkillPoints()) : 0);
