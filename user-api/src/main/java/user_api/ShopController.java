@@ -27,10 +27,11 @@ public class ShopController {
     @PostMapping("/users/{id}/shop/buy")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void buyItem(@PathVariable Integer id, @RequestBody BuyRequest request) {
-        shopService.purchaseItem(id, request.shopItemId);
+        shopService.purchaseItem(id, request.shopItemId, request.currency);
     }
 
     static class BuyRequest {
         public int shopItemId;
+        public String currency;
     }
 }

@@ -47,13 +47,13 @@ public class UserProfileService {
         UserProfileSummaryResponse response = new UserProfileSummaryResponse();
         response.setUserId(user.getUserId());
         response.setUsername(user.getUsername());
-        response.setStats(toStats(stats));
+        response.setStats(toStats(stats, user.getUserId()));
         response.setLevel(response.getStats().getLevel());
         response.setLoadout(toLoadout(user.getUserId()));
         return response;
     }
 
-    private UserProfileSummaryResponse.ProfileStatsResponse toStats(PlayerStats stats) {
+    private UserProfileSummaryResponse.ProfileStatsResponse toStats(PlayerStats stats, Integer userId) {
         UserProfileSummaryResponse.ProfileStatsResponse response = new UserProfileSummaryResponse.ProfileStatsResponse();
         int matchesPlayed = stats != null ? nullToZero(stats.getMatchesPlayed()) : 0;
         int meleeKills = stats != null ? nullToZero(stats.getMeleeEnemiesKilled()) : 0;
@@ -74,7 +74,7 @@ public class UserProfileService {
         response.setHighScore(stats != null ? nullToZero(stats.getHighScore()) : 0);
         response.setTimePlayedSeconds(stats != null ? nullToZero(stats.getTimePlayedSeconds()) : 0L);
         response.setCoins(stats != null ? nullToZero(stats.getCoins()) : 0);
-        response.setEmeralds(inventoryService.getEmeralds(user.getUserId()));
+        response.setEmeralds(inventoryService.getEmeralds(userId));
         response.setTotalXp(stats != null ? nullToZero(stats.getTotalXp()) : 0L);
         response.setLevel(stats != null ? Math.max(1, nullToZero(stats.getLevel())) : 1);
         response.setUnspentSkillPoints(stats != null ? nullToZero(stats.getUnspentSkillPoints()) : 0);

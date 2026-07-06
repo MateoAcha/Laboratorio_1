@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ShopService {
 
     private static final int GOLD_ITEM_ID = 1004;
+    private static final int EMERALD_ITEM_ID = 1033;
 
     private final JdbcTemplate jdbcTemplate;
     private final SkinService skinService;
@@ -72,7 +73,7 @@ public class ShopService {
     }
 
     @Transactional
-    public void purchaseItem(Integer userId, int shopItemId) {
+    public void purchaseItem(Integer userId, int shopItemId, String currency) {
         // Resolve shop item
         List<ShopItemRow> rows = jdbcTemplate.query(
                 "SELECT item_id, gold_price, purchase_quantity, skin_id FROM shop_item WHERE shop_item_id = ? AND is_available = TRUE",
@@ -96,13 +97,20 @@ public class ShopService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
 
-        // Check coins — atomically deduct; if 0 rows affected the user had insufficient funds
-        int updated = jdbcTemplate.update(
-                "UPDATE user_inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ? AND quantity >= ?",
-                shop.goldPrice, userId, GOLD_ITEM_ID, shop.goldPrice);
+        boolean useEmeralds = isEmeraldCurrency(currency);
+        int currencyItemId = useEmeralds ? EMERALD_ITEM_ID : GOLD_ITEM_ID;
+        int price = useEmeralds ? getEmeraldPrice(shop.goldPrice) : shop.goldPrice;
+        String currencyName = useEmeralds ? "emeralds" : "gold coins";
 
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Not enough gold coins");
+        // Check currency — atomically deduct; if 0 rows affected the user had insufficient funds
+        if (price > 0) {
+            int updated = jdbcTemplate.update(
+                    "UPDATE user_inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ? AND quantity >= ?",
+                    price, userId, currencyItemId, price);
+
+            if (updated == 0) {
+                throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Not enough " + currencyName);
+            }
         }
 
         // Skin items unlock a skin entry; everything else goes into inventory
@@ -118,6 +126,19 @@ public class ShopService {
                     """,
                     userId, shop.itemId, shop.purchaseQuantity);
         }
+    }
+
+    private boolean isEmeraldCurrency(String currency) {
+        return currency != null
+                && ("EMERALD".equalsIgnoreCase(currency.trim())
+                || "EMERALDS".equalsIgnoreCase(currency.trim()));
+    }
+
+    private int getEmeraldPrice(int goldPrice) {
+        if (goldPrice <= 0) {
+            return 0;
+        }
+        return Math.max(1, (int) Math.ceil(goldPrice * 0.10d));
     }
 
     private String buildSummary(java.sql.ResultSet rs) throws java.sql.SQLException {
