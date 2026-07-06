@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,10 @@ public class LobbyRoomService {
     }
 
     public RoomSummary create(String username) {
+        return create(username, null);
+    }
+
+    public RoomSummary create(String username, CreateRequest request) {
         pruneInactiveRooms();
 
         int roomNumber;
@@ -39,7 +44,13 @@ public class LobbyRoomService {
             roomNumber = nextRoomNumber.getAndIncrement();
         } while (rooms.containsKey(roomNumber));
 
-        RoomEntry room = new RoomEntry(roomNumber, username);
+        boolean privateMatch = request != null && request.isPrivateMatch();
+        String password = privateMatch ? normalizePassword(request.getPassword()) : "";
+        if (privateMatch && password.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Private matches need a password.");
+        }
+
+        RoomEntry room = new RoomEntry(roomNumber, username, privateMatch, password);
         room.players.put(username, new LobbyEntry(username, "", "", "", 0f, 0f, System.currentTimeMillis()));
         rooms.put(roomNumber, room);
         return room.toSummary();
@@ -59,8 +70,11 @@ public class LobbyRoomService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lobby closed.");
         }
 
-        if (!room.players.containsKey(username) && room.players.size() >= MAX_PLAYERS) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lobby is full.");
+        if (!room.players.containsKey(username)) {
+            if (room.players.size() >= MAX_PLAYERS) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Lobby is full.");
+            }
+            ensureCanJoinRoom(username, room, safeRequest);
         }
 
         room.players.put(username, new LobbyEntry(
@@ -87,7 +101,7 @@ public class LobbyRoomService {
             players.add(new PlayerEntry(e.username(), e.weapon(), e.armor(), e.item(), e.x(), e.y()));
         }
         players.sort(Comparator.comparing(PlayerEntry::getUsername));
-        return new LobbyResponse(players, started, roomNumber);
+        return new LobbyResponse(players, started, roomNumber, room.privateMatch);
     }
 
     public void start(String username, int roomNumber) {
@@ -140,6 +154,34 @@ public class LobbyRoomService {
         return activeRoom(roomNumber).map(RoomEntry::toSummary);
     }
 
+    public void authorizeInviteJoin(String username, int roomNumber) {
+        RoomEntry room = rooms.get(roomNumber);
+        if (room == null || username == null || username.isBlank()) {
+            return;
+        }
+
+        room.inviteAuthorizedUsers.add(username);
+    }
+
+    private void ensureCanJoinRoom(String username, RoomEntry room, PingRequest request) {
+        if (!room.privateMatch || username.equals(room.hostUsername) || room.inviteAuthorizedUsers.contains(username)) {
+            return;
+        }
+
+        String submittedPassword = normalizePassword(request.getPassword());
+        if (submittedPassword.isEmpty()) {
+            submittedPassword = normalizePassword(request.getLobbyPassword());
+        }
+
+        if (!room.password.equals(submittedPassword)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Incorrect lobby password.");
+        }
+    }
+
+    private static String normalizePassword(String value) {
+        return value != null ? value.trim() : "";
+    }
+
     private Optional<RoomEntry> activeRoom(int roomNumber) {
         RoomEntry room = rooms.get(roomNumber);
         if (room == null) {
@@ -185,12 +227,17 @@ public class LobbyRoomService {
     private static class RoomEntry {
         final int roomNumber;
         final String hostUsername;
+        final boolean privateMatch;
+        final String password;
+        final Set<String> inviteAuthorizedUsers = ConcurrentHashMap.newKeySet();
         final ConcurrentHashMap<String, LobbyEntry> players = new ConcurrentHashMap<>();
         volatile long startedAt = 0;
 
-        RoomEntry(int roomNumber, String hostUsername) {
+        RoomEntry(int roomNumber, String hostUsername, boolean privateMatch, String password) {
             this.roomNumber = roomNumber;
             this.hostUsername = hostUsername;
+            this.privateMatch = privateMatch;
+            this.password = password;
         }
 
         RoomSummary toSummary() {
@@ -199,7 +246,34 @@ public class LobbyRoomService {
                 playerEntries.add(new PlayerEntry(e.username(), e.weapon(), e.armor(), e.item(), e.x(), e.y()));
             }
             playerEntries.sort(Comparator.comparing(PlayerEntry::getUsername));
-            return new RoomSummary(roomNumber, playerEntries, playerEntries.size(), MAX_PLAYERS, playerEntries.size() >= MAX_PLAYERS);
+            return new RoomSummary(
+                    roomNumber,
+                    playerEntries,
+                    playerEntries.size(),
+                    MAX_PLAYERS,
+                    playerEntries.size() >= MAX_PLAYERS,
+                    privateMatch);
+        }
+    }
+
+    public static class CreateRequest {
+        private boolean privateMatch;
+        private String password;
+
+        public boolean isPrivateMatch() {
+            return privateMatch;
+        }
+
+        public void setPrivateMatch(boolean privateMatch) {
+            this.privateMatch = privateMatch;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
         }
     }
 
@@ -208,6 +282,9 @@ public class LobbyRoomService {
         private String weapon;
         private String armor;
         private String item;
+        private String password;
+        private String lobbyPassword;
+        private boolean inviteJoin;
         private float x;
         private float y;
 
@@ -241,6 +318,30 @@ public class LobbyRoomService {
 
         public void setItem(String item) {
             this.item = item;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getLobbyPassword() {
+            return lobbyPassword;
+        }
+
+        public void setLobbyPassword(String lobbyPassword) {
+            this.lobbyPassword = lobbyPassword;
+        }
+
+        public boolean isInviteJoin() {
+            return inviteJoin;
+        }
+
+        public void setInviteJoin(boolean inviteJoin) {
+            this.inviteJoin = inviteJoin;
         }
 
         public float getX() {
@@ -330,11 +431,17 @@ public class LobbyRoomService {
         private List<PlayerEntry> players;
         private boolean started;
         private int roomNumber;
+        private boolean privateMatch;
 
         public LobbyResponse(List<PlayerEntry> players, boolean started, int roomNumber) {
+            this(players, started, roomNumber, false);
+        }
+
+        public LobbyResponse(List<PlayerEntry> players, boolean started, int roomNumber, boolean privateMatch) {
             this.players = players;
             this.started = started;
             this.roomNumber = roomNumber;
+            this.privateMatch = privateMatch;
         }
 
         public List<PlayerEntry> getPlayers() {
@@ -360,6 +467,14 @@ public class LobbyRoomService {
         public void setRoomNumber(int roomNumber) {
             this.roomNumber = roomNumber;
         }
+
+        public boolean isPrivateMatch() {
+            return privateMatch;
+        }
+
+        public void setPrivateMatch(boolean privateMatch) {
+            this.privateMatch = privateMatch;
+        }
     }
 
     public static class RoomSummary {
@@ -368,13 +483,15 @@ public class LobbyRoomService {
         private int playerCount;
         private int maxPlayers;
         private boolean full;
+        private boolean privateMatch;
 
-        public RoomSummary(int roomNumber, List<PlayerEntry> players, int playerCount, int maxPlayers, boolean full) {
+        public RoomSummary(int roomNumber, List<PlayerEntry> players, int playerCount, int maxPlayers, boolean full, boolean privateMatch) {
             this.roomNumber = roomNumber;
             this.players = players;
             this.playerCount = playerCount;
             this.maxPlayers = maxPlayers;
             this.full = full;
+            this.privateMatch = privateMatch;
         }
 
         public int getRoomNumber() {
@@ -415,6 +532,14 @@ public class LobbyRoomService {
 
         public void setFull(boolean full) {
             this.full = full;
+        }
+
+        public boolean isPrivateMatch() {
+            return privateMatch;
+        }
+
+        public void setPrivateMatch(boolean privateMatch) {
+            this.privateMatch = privateMatch;
         }
     }
 

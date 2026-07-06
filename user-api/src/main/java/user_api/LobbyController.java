@@ -30,8 +30,8 @@ public class LobbyController {
     }
 
     @PostMapping("/create")
-    public LobbyRoomService.RoomSummary create() {
-        return lobbyRoomService.create(authenticatedUsername());
+    public LobbyRoomService.RoomSummary create(@RequestBody(required = false) LobbyRoomService.CreateRequest request) {
+        return lobbyRoomService.create(authenticatedUsername(), request);
     }
 
     @PostMapping("/ping")

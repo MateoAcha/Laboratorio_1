@@ -238,6 +238,7 @@ public class SocialService {
 
         LobbyRoomService.RoomSummary lobby = lobbyRoomService.findActiveRoomSummary(invite.getRoomNumber())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Lobby is no longer active"));
+        lobbyRoomService.authorizeInviteJoin(currentUser.getUsername(), invite.getRoomNumber());
 
         User hostUser = findUserById(invite.getHostUserId());
         invite.setStatus(GameInviteStatus.ACCEPTED);
