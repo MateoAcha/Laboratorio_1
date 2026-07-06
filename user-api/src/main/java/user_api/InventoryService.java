@@ -60,6 +60,20 @@ public class InventoryService {
                 userId, quantity);
     }
 
+    public void spendCoins(Integer userId, int quantity) {
+        if (userId == null || quantity <= 0) {
+            return;
+        }
+
+        jdbcTemplate.update(
+                """
+                UPDATE user_inventory
+                SET quantity = GREATEST(0, quantity - ?)
+                WHERE user_id = ? AND item_id = 1004
+                """,
+                quantity, userId);
+    }
+
     @Transactional
     public void addMaterials(Integer userId, List<MaterialRewardRequest> materials) {
         if (userId == null || materials == null || materials.isEmpty()) {

@@ -451,6 +451,15 @@ public class UserController {
         inventoryService.addCoins(id, Math.max(0, request.quantity));
     }
 
+    @PostMapping("/{id}/inventory/spend-coins")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void spendCoins(@PathVariable Integer id, @RequestBody AddCoinsRequest request) {
+        if (!repository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        inventoryService.spendCoins(id, Math.max(0, request.quantity));
+    }
+
     @PostMapping("/{id}/inventory/add-emeralds")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addEmeralds(@PathVariable Integer id, @RequestBody AddEmeraldsRequest request) {
