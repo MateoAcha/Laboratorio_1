@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ShopService {
 
     private static final int GOLD_ITEM_ID = 1004;
-    private static final int EMERALD_ITEM_ID = 1033;
+    private static final int EMERALD_ITEM_ID = 3000;
 
     private final JdbcTemplate jdbcTemplate;
     private final SkinService skinService;
