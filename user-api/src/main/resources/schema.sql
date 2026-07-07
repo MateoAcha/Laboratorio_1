@@ -224,3 +224,15 @@ CREATE TABLE IF NOT EXISTS shop_item (
 );
 
 ALTER TABLE shop_item ADD COLUMN IF NOT EXISTS skin_id INT REFERENCES skin(skin_id);
+
+CREATE TABLE IF NOT EXISTS payment_record (
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        INTEGER NOT NULL,
+    preference_id  VARCHAR(255) NOT NULL,
+    mp_payment_id  BIGINT,
+    emeralds       INTEGER NOT NULL,
+    pesos_price    INTEGER NOT NULL,
+    status         VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
+);

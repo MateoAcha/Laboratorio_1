@@ -76,11 +76,11 @@ INSERT INTO material (item_id, material_key, material_grade) VALUES
 ON CONFLICT (item_id) DO NOTHING;
 
 INSERT INTO item (item_id, item_name, item_type, rarity, description) VALUES
-    (1033, 'Emeralds', 'Currency', 'Rare', 'Premium currency earned through special achievements.')
+    (3000, 'Emeralds', 'Currency', 'Rare', 'Premium currency purchased with real money.')
 ON CONFLICT (item_id) DO NOTHING;
 
 INSERT INTO currency (item_id, currency_code, is_tradeable) VALUES
-    (1033, 'EMERALD', FALSE)
+    (3000, 'EMERALD', FALSE)
 ON CONFLICT (item_id) DO NOTHING;
 
 UPDATE material SET material_key = 'green_fields_material', material_grade = 'Rare' WHERE item_id = 1030;

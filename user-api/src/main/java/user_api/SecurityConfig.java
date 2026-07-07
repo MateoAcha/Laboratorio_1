@@ -34,6 +34,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/game-ws", "/game-ws/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users", "/users/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/payments/webhook").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

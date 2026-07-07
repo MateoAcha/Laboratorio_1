@@ -237,7 +237,7 @@ public class InventoryService {
         jdbcTemplate.update(
                 """
                 INSERT INTO user_inventory (user_inventory_id, user_id, item_id, quantity, acquired_at)
-                VALUES (nextval('user_inventory_seq'), ?, 1033, ?, NOW())
+                VALUES (nextval('user_inventory_seq'), ?, 3000, ?, NOW())
                 ON CONFLICT (user_id, item_id)
                 DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
                 """,
@@ -253,7 +253,7 @@ public class InventoryService {
                 """
                 SELECT COALESCE(MAX(quantity), 0)
                 FROM user_inventory
-                WHERE user_id = ? AND item_id = 1033
+                WHERE user_id = ? AND item_id = 3000
                 """,
                 Integer.class,
                 userId);
